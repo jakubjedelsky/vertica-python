@@ -102,16 +102,23 @@ class Cursor(object):
     # Non dbApi methods
     #
 
-    def copy(self, sql, source=None, handler=None):
-        pass
-        #job = Query(self, sql, dict(row_style=self.row_style))
-        #if handler is not None:
-        #    job.copy_handler = handler
-        #elif source is not None and os.path.isfile(str(source)):
-        #    job.copy_handler = lambda data: self.file_copy_handler(source, data)
-        #elif hasattr(source, 'read'):
-        #    job.copy_handler = lambda data: self.io_copy_handler(source, data)
-        #return self.run_with_job_lock(job)
+    def copy(self, sql, data):
+
+        if self.closed():
+            raise errors.Error('Cursor is closed')
+
+        self.connection.write(messages.Query(sql))
+
+        while True:
+            message = self.connection.read_message()
+            self._process_message(message=message)
+            if isinstance(message, messages.ReadyForQuery):
+                break
+            if isinstance(message, messages.CopyInResponse):
+                #write stuff
+                self.connection.write(messages.CopyData(data))
+                self.connection.write(messages.CopyDone())
+
 
     #
     # Internal
@@ -129,16 +136,11 @@ class Cursor(object):
 
 
     def fetch_rows(self):
-        counter = 0
         while True:
             message = self.connection.read_message()
             self._process_message(message=message)
             if isinstance(message, messages.ReadyForQuery):
                 break
-            # just in case for now...
-            if counter > 10000000:
-                raise errors.Error('Nope')
-            counter = counter + 1
 
 
     def _process_message(self, message):
@@ -148,8 +150,6 @@ class Cursor(object):
         elif isinstance(message, messages.EmptyQueryResponse):
             self.error = errors.EmptyQueryError("A SQL string was expected, but the given string was blank or only contained SQL comments.")
         elif isinstance(message, messages.CopyInResponse):
-            # TODO
-            #self._handle_copy_from_stdin()
             pass
         elif isinstance(message, messages.RowDescription):
             self.set_description(message)
