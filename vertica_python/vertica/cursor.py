@@ -114,11 +114,17 @@ class Cursor(object):
             self._process_message(message=message)
             if isinstance(message, messages.ReadyForQuery):
                 break
-            if isinstance(message, messages.CopyInResponse):
+            elif isinstance(message, messages.CopyInResponse):
+                #write stuff
+                self.connection.write(messages.CopyData(data))
+                self.connection.write(messages.CopyDone())
+            elif isinstance(message, messages.CopyInResponse):
                 #write stuff
                 self.connection.write(messages.CopyData(data))
                 self.connection.write(messages.CopyDone())
 
+        if self.error is not None:
+            raise self.error
 
     #
     # Internal
