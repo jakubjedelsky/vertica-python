@@ -6,6 +6,6 @@ python:
   - "3.3"
 # command to install dependencies
 install:
-  - "pip install --pre python-dateutil"
+  - "pip install --user python-dateutil"
   - "pip install -r requirements.txt"
   - "pip install . --use-mirrors"
